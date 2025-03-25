@@ -9,6 +9,15 @@
 using namespace cs2_dumper::offsets::client_dll;
 using namespace cs2_dumper::schemas::client_dll;
 
+std::string ReadStringFromMemory(uintptr_t address) {
+	if (!address) {
+		return "NULL";
+	}
+	char buffer[64] = { 0 };
+	ProcessMgr.ReadMemory(address, buffer);
+	return std::string(buffer);
+}
+
 void RunEsp(uintptr_t client, bool enable, bool box, bool name, bool healthbar, bool health, bool weapon) {
 	if (enable) {
 		uintptr_t lpp;
@@ -65,7 +74,25 @@ void RunEsp(uintptr_t client, bool enable, bool box, bool name, bool healthbar, 
 			std::string playerhealth_str = std::to_string(ph);
 			const char* playerhealth = playerhealth_str.c_str();
 			if (health) Render::DrawLabel(head_w2s.x - width / 2 - 30, head_w2s.y, { 255, 255, 255 }, playerhealth);
-			//if (weapon) Render::DrawLabel(head_w2s.x - width / 2 - 5, head_w2s.y - 15, { 255, 255, 255 }, wn.c_str());
+			if (weapon) {
+				std::string weaponName = "Unknown";
+
+				uintptr_t clippingWeapon;
+				if (ProcessMgr.ReadMemory(cspp + C_CSPlayerPawnBase::m_pClippingWeapon, clippingWeapon) && clippingWeapon) {
+					uintptr_t weaponData;
+					if (ProcessMgr.ReadMemory(clippingWeapon + CEntityInstance::m_pEntity, weaponData) && weaponData) {
+						uintptr_t weaponNameAddress;
+						if (ProcessMgr.ReadMemory(weaponData + CEntityIdentity::m_designerName, weaponNameAddress)) {
+							weaponName = ReadStringFromMemory(weaponNameAddress);
+							if (weaponName.compare(0, 7, "weapon_") == 0) {
+								weaponName = weaponName.substr(7);
+							}
+
+						}
+					}
+				}
+				Render::DrawLabel(head_w2s.x - width / 2, head_w2s.y + 15, enemy, weaponName.c_str());
+			}
 		}
 	}
 }
